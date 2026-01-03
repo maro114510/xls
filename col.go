@@ -5,13 +5,12 @@ import (
 	"math"
 	"strconv"
 	"strings"
-
 	"time"
 
 	yymmdd "github.com/extrame/goyymmdd"
 )
 
-//content type
+// content type
 type contentHandler interface {
 	String(*WorkBook) []string
 	FirstCol() uint16
@@ -64,7 +63,7 @@ func (xf *XfRk) String(wb *WorkBook) string {
 					strings.Contains(formatterLower, "d.y") ||
 					strings.Contains(formatterLower, "h:") ||
 					strings.Contains(formatterLower, "д.г") {
-					//If format contains # or .00 then this is a number
+					// If format contains # or .00 then this is a number
 					return xf.Rk.String()
 				} else {
 					i, f, isFloat := xf.Rk.number()
@@ -82,7 +81,7 @@ func (xf *XfRk) String(wb *WorkBook) string {
 				f = float64(i)
 			}
 			t := timeFromExcelTime(f, wb.dateMode == 1)
-			return t.Format(time.RFC3339) //TODO it should be international
+			return t.Format(time.RFC3339) // TODO it should be international
 		}
 	}
 	return xf.Rk.String()
@@ -139,7 +138,7 @@ func (c *MulrkCol) LastCol() uint16 {
 }
 
 func (c *MulrkCol) String(wb *WorkBook) []string {
-	var res = make([]string, len(c.Xfrks))
+	res := make([]string, len(c.Xfrks))
 	for i := 0; i < len(c.Xfrks); i++ {
 		xfrk := c.Xfrks[i]
 		res[i] = xfrk.String(wb)
@@ -169,8 +168,27 @@ type NumberCol struct {
 
 func (c *NumberCol) String(wb *WorkBook) []string {
 	if fNo := wb.Xfs[c.Index].formatNo(); fNo != 0 {
-		t := timeFromExcelTime(c.Float, wb.dateMode == 1)
-		return []string{yymmdd.Format(t, wb.Formats[fNo].str)}
+		if fNo >= 164 { // user defined format
+			if formatter := wb.Formats[fNo]; formatter != nil {
+				formatterLower := strings.ToLower(formatter.str)
+				if formatterLower == "general" ||
+					strings.Contains(formatter.str, "#") ||
+					strings.Contains(formatter.str, ".00") ||
+					strings.Contains(formatterLower, "m/y") ||
+					strings.Contains(formatterLower, "d/y") ||
+					strings.Contains(formatterLower, "m.y") ||
+					strings.Contains(formatterLower, "d.y") ||
+					strings.Contains(formatterLower, "h:") ||
+					strings.Contains(formatterLower, "д.г") {
+					return []string{strconv.FormatFloat(c.Float, 'f', -1, 64)}
+				}
+				t := timeFromExcelTime(c.Float, wb.dateMode == 1)
+				return []string{yymmdd.Format(t, formatter.str)}
+			}
+		} else if 14 <= fNo && fNo <= 17 || fNo == 22 || 27 <= fNo && fNo <= 36 || 50 <= fNo && fNo <= 58 {
+			t := timeFromExcelTime(c.Float, wb.dateMode == 1)
+			return []string{t.Format(time.RFC3339)}
+		}
 	}
 	return []string{strconv.FormatFloat(c.Float, 'f', -1, 64)}
 }
@@ -184,9 +202,8 @@ func (c *FormulaStringCol) String(wb *WorkBook) []string {
 	return []string{c.RenderedValue}
 }
 
-//str, err = wb.get_string(buf_item, size)
-//wb.sst[offset_pre] = wb.sst[offset_pre] + str
-
+// str, err = wb.get_string(buf_item, size)
+// wb.sst[offset_pre] = wb.sst[offset_pre] + str
 type FormulaCol struct {
 	Header struct {
 		Col
