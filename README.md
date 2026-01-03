@@ -13,3 +13,7 @@ Thanks for contributions from Tamás Gulácsi @tgulacsi, @flyin9.
 * Use **OpenReader** function for open xls from a reader, you should close related file in your own code
 
 * Follow the example in GoDoc
+
+# Notes
+
+* BIFF8 FORMULA cells now return cached string results stored in the following STRING record (0x0207).
